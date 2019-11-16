@@ -17,33 +17,38 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.firebase.client.Firebase;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class LoginActivity extends AppCompatActivity {
-    TextView registerUser;
+public class RegisterActivity extends AppCompatActivity {
+
     EditText username, password;
-    Button loginButton;
+    Button registerButton;
     String user, pass;
+    TextView login;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
+        setContentView(R.layout.activity_register);
 
-        registerUser = (TextView)findViewById(R.id.register);
         username = (EditText)findViewById(R.id.username);
         password = (EditText)findViewById(R.id.password);
-        loginButton = (Button)findViewById(R.id.loginButton);
+        registerButton = (Button)findViewById(R.id.registerButton);
+        login = (TextView)findViewById(R.id.login);
 
-        registerUser.setOnClickListener(new View.OnClickListener() {
+        Firebase.setAndroidContext(this);
+
+        login.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
+                startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
             }
         });
 
-        loginButton.setOnClickListener(new View.OnClickListener() {
+        registerButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 user = username.getText().toString();
@@ -55,33 +60,43 @@ public class LoginActivity extends AppCompatActivity {
                 else if(pass.equals("")){
                     password.setError("can't be blank");
                 }
-                else{
-                    String url = "https://robiot.firebaseio.com/users.json";
-                    final ProgressDialog pd = new ProgressDialog(LoginActivity.this);
+                else if(!user.matches("[A-Za-z0-9]+")){
+                    username.setError("only alphabet or number allowed");
+                }
+                else if(user.length()<5){
+                    username.setError("at least 5 characters long");
+                }
+                else if(pass.length()<5){
+                    password.setError("at least 5 characters long");
+                }
+                else {
+                    final ProgressDialog pd = new ProgressDialog(RegisterActivity.this);
                     pd.setMessage("Loading...");
                     pd.show();
+
+                    String url = "https://robiot.firebaseio.com/users.json";
 
                     StringRequest request = new StringRequest(Request.Method.GET, url, new Response.Listener<String>(){
                         @Override
                         public void onResponse(String s) {
-                            if(s.equals("null")){
-                                Toast.makeText(LoginActivity.this, "user not found", Toast.LENGTH_LONG).show();
+                            Firebase reference = new Firebase("https://robiot.firebaseio.com/users");
+
+                            if(s.equals("null")) {
+                                reference.child(user).child("password").setValue(pass);
+                                Toast.makeText(RegisterActivity.this, "registration successful", Toast.LENGTH_LONG).show();
                             }
-                            else{
+                            else {
                                 try {
                                     JSONObject obj = new JSONObject(s);
 
-                                    if(!obj.has(user)){
-                                        Toast.makeText(LoginActivity.this, "user not found", Toast.LENGTH_LONG).show();
+                                    if (!obj.has(user)) {
+                                        reference.child(user).child("password").setValue(pass);
+                                        //image will be added there
+                                        Toast.makeText(RegisterActivity.this, "registration successful", Toast.LENGTH_LONG).show();
+                                    } else {
+                                        Toast.makeText(RegisterActivity.this, "username already exists", Toast.LENGTH_LONG).show();
                                     }
-                                    else if(obj.getJSONObject(user).getString("password").equals(pass)){
-                                        UserDetails.username = user;
-                                        UserDetails.password = pass;
-                                        startActivity(new Intent(LoginActivity.this, HomeActivity.class));
-                                    }
-                                    else {
-                                        Toast.makeText(LoginActivity.this, "Incorrect Password", Toast.LENGTH_LONG).show();
-                                    }
+
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
@@ -89,18 +104,18 @@ public class LoginActivity extends AppCompatActivity {
 
                             pd.dismiss();
                         }
+
                     },new Response.ErrorListener(){
                         @Override
                         public void onErrorResponse(VolleyError volleyError) {
-                            System.out.println("" + volleyError);
+                            System.out.println("" + volleyError );
                             pd.dismiss();
                         }
                     });
 
-                    RequestQueue rQueue = Volley.newRequestQueue(LoginActivity.this);
+                    RequestQueue rQueue = Volley.newRequestQueue(RegisterActivity.this);
                     rQueue.add(request);
                 }
-
             }
         });
 
